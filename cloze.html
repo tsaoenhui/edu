@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文克漏字互動測驗卷產生器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
+        ::selection { background-color: #fde68a; color: #1f2937; }
+        /* 挖空標記樣式 */
+        .blank-marker {
+            background-color: #dbeafe; color: #1e40af; padding: 2px 6px;
+            border-radius: 4px; font-weight: 500; display: inline-block;
+            margin: 0 2px; user-select: none;
+        }
+        /* 預覽區下拉選單 */
+        .cloze-select {
+            display: inline-block; width: auto; min-width: 120px;
+            padding: 4px 8px; border-radius: 6px; border: 1px solid #d1d5db;
+            background-color: #f9fafb; margin: 0 4px; vertical-align: baseline;
+        }
+        /* 編輯器聚焦 */
+        [contenteditable="true"]:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; }
+        /* 選項標籤樣式 */
+        .option-item {
+            padding: 4px 12px; background-color: #e5e7eb; border-radius: 999px;
+            font-size: 0.875rem; transition: all 0.2s; white-space: nowrap;
+            display: inline-block; margin-right: 4px; margin-bottom: 4px;
+        }
+        .option-item.used-once {
+            text-decoration: line-through; color: #9ca3af; background-color: #f3f4f6;
+        }
+        .option-item.used-multi {
+            text-decoration: line-through; color: #ef4444; background-color: #fee2e2;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 md:p-8 transition-all duration-500 relative">
+        
+        <div id="header" class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">英文克漏字互動測驗卷產生器</h1>
+            <p class="text-gray-500 mt-2">三步驟製作專業互動教材</p>
+        </div>
+
+        <!-- 步驟指示器 -->
+        <div class="flex justify-between items-center mb-8 border-b pb-4 px-4 md:px-12">
+            <div id="step-1-indicator" class="step-indicator flex flex-col items-center text-blue-600 font-semibold">
+                <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center mb-1">1</div>
+                <span class="text-sm">輸入選項</span>
+            </div>
+            <div class="flex-1 h-px bg-gray-300 mx-4"></div>
+            <div id="step-2-indicator" class="step-indicator flex flex-col items-center text-gray-400">
+                <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mb-1">2</div>
+                <span class="text-sm">編輯文章</span>
+            </div>
+            <div class="flex-1 h-px bg-gray-300 mx-4"></div>
+            <div id="step-3-indicator" class="step-indicator flex flex-col items-center text-gray-400">
+                <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mb-1">3</div>
+                <span class="text-sm">預覽匯出</span>
+            </div>
+        </div>
+
+        <!-- 步驟 1: 輸入選項 -->
+        <div id="step-1">
+            <h2 class="text-xl font-semibold mb-3 text-gray-700">步驟 1：設定選項庫</h2>
+            <p class="text-gray-500 mb-4 text-sm">請輸入克漏字的選項單字或片語，每行一個 (上限 15 個)。</p>
+            <textarea id="options-input" rows="10" class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-lg" placeholder="例如：&#10;apple&#10;banana&#10;orange"></textarea>
+            <div class="flex justify-between items-center mt-4">
+                <span id="option-counter" class="text-sm font-medium text-gray-500">目前選項：0 / 15</span>
+                <button id="next-to-step-2" class="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-lg shadow hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors" disabled>
+                    下一步
+                </button>
+            </div>
+        </div>
+
+        <!-- 步驟 2: 編輯文章與挖空 -->
+        <div id="step-2" class="hidden">
+            <h2 class="text-xl font-semibold mb-3 text-gray-700">步驟 2：文章編輯與挖空</h2>
+            <p class="text-gray-500 mb-4 text-sm">貼上文章，選取文字後按 <kbd class="bg-gray-100 px-1 rounded border">Ctrl</kbd> + <kbd class="bg-gray-100 px-1 rounded border">M</kbd> 或點擊按鈕進行挖空。</p>
+            
+            <!-- 編輯器工具列 -->
+            <div class="mb-2 flex gap-2">
+                <button id="create-blank" class="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                    設為空格
+                </button>
+            </div>
+
+            <div id="article-editor" contenteditable="true" class="w-full h-80 p-6 border border-gray-300 rounded-xl overflow-y-auto bg-gray-50 focus:bg-white text-lg leading-relaxed"></div>
+            
+            <div class="flex justify-between items-center mt-6">
+                <button id="back-to-step-1" class="px-6 py-2.5 text-gray-600 font-semibold hover:bg-gray-100 rounded-lg transition-colors">
+                    ← 上一步
+                </button>
+                <button id="finish" class="px-8 py-2.5 bg-green-600 text-white font-bold rounded-lg shadow hover:bg-green-700 transition-colors">
+                    完成，預覽測驗
+                </button>
+            </div>
+        </div>
+
+        <!-- 步驟 3: 預覽與匯出 -->
+        <div id="step-3" class="hidden">
+            <h2 class="text-xl font-semibold mb-3 text-gray-700">步驟 3：預覽與發布</h2>
+            <p class="text-gray-500 mb-4 text-sm">測試答題功能，確認無誤後即可匯出。</p>
+            
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <!-- 預覽：選項區 -->
+                <div class="bg-gray-50 p-4 border-b border-gray-200">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">選項庫 (Options Bank)</h3>
+                    <div id="options-bank" class="flex flex-wrap gap-2"></div>
+                </div>
+                <!-- 預覽：內容區 -->
+                <div id="preview-area" class="p-8 min-h-[300px] text-lg leading-loose"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                 <button id="export-html" title="快速鍵: Alt + H" class="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow hover:bg-indigo-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                    匯出互動 HTML <span class="text-xs font-normal opacity-75 ml-1">(Alt+H)</span>
+                </button>
+                <button id="export-pdf" title="快速鍵: Alt + P" class="flex items-center justify-center gap-2 px-6 py-3 bg-gray-700 text-white font-bold rounded-xl shadow hover:bg-gray-800 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    匯出靜態 PDF <span class="text-xs font-normal opacity-75 ml-1">(Alt+P)</span>
+                </button>
+                <button id="restart" class="flex items-center justify-center gap-2 px-6 py-3 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-colors border border-transparent hover:border-red-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    重新製作
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-8 text-center text-sm text-gray-400">
+        <p>由 En-Hui 與 Gemini 共同製作</p>
+    </footer>
+
+    <!-- 檔名輸入 Modal -->
+    <div id="title-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transform transition-all scale-100">
+            <h3 class="text-xl font-bold mb-2 text-gray-900">設定檔案名稱</h3>
+            <p class="text-gray-500 mb-6 text-sm">請為您的測驗卷命名，這將成為下載檔案的名稱。</p>
+            <input type="text" id="test-title-input" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="我的克漏字測驗">
+            <div class="flex justify-end gap-3 mt-8">
+                <button id="cancel-title" title="快速鍵: Esc" class="px-5 py-2 text-gray-600 font-medium rounded-lg hover:bg-gray-100">取消</button>
+                <button id="confirm-title" title="快速鍵: Enter" class="px-5 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-200">確認匯出</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 變數與 DOM ---
+            let options = [];
+            let blankCount = 0;
+            let exportType = null;
+
+            const step1 = document.getElementById('step-1');
+            const step2 = document.getElementById('step-2');
+            const step3 = document.getElementById('step-3');
+            const indicators = [document.getElementById('step-1-indicator'), document.getElementById('step-2-indicator'), document.getElementById('step-3-indicator')];
+            
+            const optionsInput = document.getElementById('options-input');
+            const optionCounter = document.getElementById('option-counter');
+            const nextToStep2Btn = document.getElementById('next-to-step-2');
+            
+            const articleEditor = document.getElementById('article-editor');
+            const createBlankBtn = document.getElementById('create-blank');
+            const backToStep1Btn = document.getElementById('back-to-step-1');
+            const finishBtn = document.getElementById('finish');
+            
+            const previewArea = document.getElementById('preview-area');
+            const optionsBank = document.getElementById('options-bank');
+            const exportHtmlBtn = document.getElementById('export-html');
+            const exportPdfBtn = document.getElementById('export-pdf');
+            const restartBtn = document.getElementById('restart');
+            
+            const titleModal = document.getElementById('title-modal');
+            const testTitleInput = document.getElementById('test-title-input');
+            const confirmTitleBtn = document.getElementById('confirm-title');
+            const cancelTitleBtn = document.getElementById('cancel-title');
+
+            // --- 流程控制 ---
+            function updateStep(targetStep) {
+                [step1, step2, step3].forEach((el, idx) => el.classList.toggle('hidden', idx + 1 !== targetStep));
+                indicators.forEach((el, idx) => {
+                    const circle = el.querySelector('div');
+                    const text = el.querySelector('span');
+                    if (idx + 1 < targetStep) { // Completed
+                        el.className = "step-indicator flex flex-col items-center text-blue-600";
+                        circle.className = "w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center mb-1";
+                    } else if (idx + 1 === targetStep) { // Current
+                        el.className = "step-indicator flex flex-col items-center text-blue-600 font-semibold";
+                        circle.className = "w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center mb-1 shadow-lg shadow-blue-200";
+                    } else { // Future
+                        el.className = "step-indicator flex flex-col items-center text-gray-400";
+                        circle.className = "w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mb-1";
+                    }
+                });
+            }
+
+            // --- Step 1 邏輯 ---
+            optionsInput.addEventListener('input', () => {
+                const lines = optionsInput.value.split('\n').filter(line => line.trim() !== '');
+                const count = lines.length;
+                optionCounter.textContent = `目前選項：${count} / 15`;
+                optionCounter.className = count > 15 ? 'text-sm font-medium text-red-500' : 'text-sm font-medium text-gray-500';
+                nextToStep2Btn.disabled = count === 0 || count > 15;
+            });
+
+            nextToStep2Btn.addEventListener('click', () => {
+                options = optionsInput.value.split('\n').filter(line => line.trim() !== '');
+                updateStep(2);
+            });
+
+            // --- Step 2 邏輯 ---
+            const checkSelection = () => {
+                const sel = window.getSelection();
+                createBlankBtn.disabled = !(sel.rangeCount > 0 && !sel.isCollapsed && articleEditor.contains(sel.anchorNode));
+            };
+            
+            ['keyup', 'mouseup', 'selectionchange'].forEach(e => document.addEventListener(e, checkSelection));
+
+            const createBlank = () => {
+                const sel = window.getSelection();
+                if (!sel.rangeCount || sel.isCollapsed) return;
+                
+                const range = sel.getRangeAt(0);
+                if (!articleEditor.contains(range.commonAncestorContainer)) return;
+
+                blankCount++;
+                const span = document.createElement('span');
+                span.className = 'blank-marker';
+                span.contentEditable = 'false';
+                span.textContent = `[空格 ${blankCount}]`;
+                
+                range.deleteContents();
+                range.insertNode(span);
+                sel.removeAllRanges();
+                checkSelection();
+            };
+
+            createBlankBtn.addEventListener('click', createBlank);
+            articleEditor.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+                    e.preventDefault();
+                    if (!createBlankBtn.disabled) createBlank();
+                }
+            });
+
+            backToStep1Btn.addEventListener('click', () => updateStep(1));
+
+            finishBtn.addEventListener('click', () => {
+                // 渲染預覽
+                const tempContent = document.createElement('div');
+                tempContent.innerHTML = articleEditor.innerHTML;
+                
+                // 替換空格為下拉選單
+                tempContent.querySelectorAll('.blank-marker').forEach(marker => {
+                    const select = document.createElement('select');
+                    select.className = 'cloze-select';
+                    let html = '<option value="">請選擇答案</option>';
+                    options.forEach(opt => html += `<option value="${opt}">${opt}</option>`);
+                    select.innerHTML = html;
+                    marker.replaceWith(select);
+                });
+                
+                previewArea.innerHTML = tempContent.innerHTML;
+                
+                // 渲染選項庫
+                optionsBank.innerHTML = options.map(opt => `<span class="option-item" data-option="${opt}">${opt}</span>`).join('');
+                
+                // 綁定預覽互動
+                previewArea.querySelectorAll('select').forEach(select => {
+                    select.addEventListener('change', updatePreviewStatus);
+                });
+                
+                updatePreviewStatus();
+                updateStep(3);
+            });
+
+            // --- Step 3 邏輯 ---
+            function updatePreviewStatus() {
+                const selects = previewArea.querySelectorAll('select');
+                const counts = {};
+                selects.forEach(s => { if(s.value) counts[s.value] = (counts[s.value] || 0) + 1; });
+                
+                optionsBank.querySelectorAll('.option-item').forEach(item => {
+                    const val = item.dataset.option;
+                    item.classList.remove('used-once', 'used-multi');
+                    if (counts[val] === 1) item.classList.add('used-once');
+                    else if (counts[val] > 1) item.classList.add('used-multi');
+                });
+            }
+
+            restartBtn.addEventListener('click', () => {
+                if(confirm('確定要重新開始嗎？目前的進度將會遺失。')) {
+                    options = [];
+                    blankCount = 0;
+                    optionsInput.value = '';
+                    articleEditor.innerHTML = '';
+                    optionsInput.dispatchEvent(new Event('input'));
+                    updateStep(1);
+                }
+            });
+
+            // --- 匯出 Modal ---
+            const openModal = (type) => {
+                exportType = type;
+                titleModal.classList.remove('hidden');
+                testTitleInput.focus();
+            };
+
+            exportHtmlBtn.addEventListener('click', () => openModal('html'));
+            exportPdfBtn.addEventListener('click', () => openModal('pdf'));
+            cancelTitleBtn.addEventListener('click', () => titleModal.classList.add('hidden'));
+            
+            confirmTitleBtn.addEventListener('click', () => {
+                const title = testTitleInput.value || '克漏字測驗';
+                if (exportType === 'html') doExportHtml(title);
+                if (exportType === 'pdf') doExportPdf(title);
+                titleModal.classList.add('hidden');
+            });
+
+            // 全域快速鍵監聽
+            document.addEventListener('keydown', (e) => {
+                // Modal 開啟時
+                if (!titleModal.classList.contains('hidden')) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        confirmTitleBtn.click();
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelTitleBtn.click();
+                    }
+                    return; // Modal 開啟時不處理其他快速鍵
+                }
+
+                // Step 3 (預覽) 畫面時
+                if (!step3.classList.contains('hidden')) {
+                    if (e.altKey && e.key.toLowerCase() === 'h') {
+                        e.preventDefault();
+                        exportHtmlBtn.click();
+                    } else if (e.altKey && e.key.toLowerCase() === 'p') {
+                        e.preventDefault();
+                        exportPdfBtn.click();
+                    }
+                }
+            });
+
+            // --- 核心匯出邏輯 ---
+            
+            // 1. 匯出靜態 PDF
+            const doExportPdf = (title) => {
+                const clone = document.createElement('div');
+                clone.style.width = '800px';
+                clone.style.padding = '40px';
+                clone.style.backgroundColor = 'white';
+                clone.style.position = 'absolute';
+                clone.style.top = '-9999px';
+                
+                // 增加作者名
+                const authorEl = document.createElement('div');
+                authorEl.textContent = 'Created by En-Hui & Gemini';
+                authorEl.style.cssText = 'position: absolute; top: 20px; right: 40px; font-size: 12px; color: #888;';
+                clone.appendChild(authorEl);
+                
+                const h1 = document.createElement('h1');
+                h1.textContent = title;
+                h1.style.fontSize = '24px'; h1.style.marginBottom = '20px'; h1.style.borderBottom = '2px solid #eee';
+                clone.appendChild(h1);
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.innerHTML = previewArea.innerHTML;
+                contentDiv.style.lineHeight = '2';
+                contentDiv.style.fontSize = '16px';
+                
+                const selects = previewArea.querySelectorAll('select');
+                contentDiv.querySelectorAll('select').forEach((s, i) => {
+                    const val = selects[i].value;
+                    const span = document.createElement('span');
+                    span.textContent = val ? val : '_______';
+                    span.style.borderBottom = '1px solid black';
+                    span.style.fontWeight = 'bold';
+                    span.style.padding = '0 4px';
+                    s.replaceWith(span);
+                });
+                
+                clone.appendChild(contentDiv);
+                document.body.appendChild(clone);
+                
+                window.html2canvas(clone, { scale: 2 }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF();
+                    const imgProps = pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`${title}.pdf`);
+                    document.body.removeChild(clone);
+                });
+            };
+
+            // 2. 匯出互動 HTML (Mini App)
+            const doExportHtml = (title) => {
+                // Sanitize options for HTML attribute
+                const optionsList = options.map(o => {
+                    const safeO = o.replace(/"/g, '&quot;').replace(/`/g, ''); 
+                    return `<div class="option-item" data-opt="${safeO}">${o}</div>`;
+                }).join('');
+                
+                const contentHtml = previewArea.innerHTML; 
+                
+                // 嵌入的 JS 邏輯
+                const script = `
+                    let isEditMode = false;
+                    let tool = 'select';
+                    let color = '#ef4444';
+                    let size = 3;
+                    let strokes = [];
+                    let history = [];
+                    let historyIndex = -1;
+
+                    const leftPanel = document.getElementById('left-panel');
+                    const rightPanel = document.getElementById('right-panel');
+                    const canvasLeft = document.getElementById('canvas-left');
+                    const canvasRight = document.getElementById('canvas-right');
+                    const ctxLeft = canvasLeft.getContext('2d');
+                    const ctxRight = canvasRight.getContext('2d');
+                    
+                    const contentArea = document.getElementById('content-area');
+                    const titleEl = document.getElementById('doc-title');
+                    const contextMenu = document.getElementById('context-menu');
+                    const optionsContainer = document.getElementById('options-bank-container');
+                    const testContent = document.getElementById('test-content');
+
+                    // Resize logic: 畫布覆蓋整個面板
+                    function resizeCanvases() {
+                        // Left Panel
+                        canvasLeft.width = leftPanel.offsetWidth; 
+                        canvasLeft.height = Math.max(leftPanel.scrollHeight, leftPanel.offsetHeight);
+                        canvasLeft.style.top = '0px';
+                        canvasLeft.style.left = '0px';
+                        
+                        // Right Panel
+                        canvasRight.width = rightPanel.offsetWidth;
+                        canvasRight.height = Math.max(rightPanel.scrollHeight, rightPanel.offsetHeight);
+                        canvasRight.style.top = '0px';
+                        canvasRight.style.left = '0px';
+                        
+                        redraw();
+                    }
+                    
+                    window.addEventListener('resize', resizeCanvases);
+                    // 監聽內容高度變化
+                    new ResizeObserver(resizeCanvases).observe(testContent);
+                    new ResizeObserver(resizeCanvases).observe(leftPanel);
+                    setTimeout(resizeCanvases, 200);
+
+                    const selects = document.querySelectorAll('select');
+                    const optionItems = document.querySelectorAll('.option-item');
+                    function updateOptions() {
+                        const counts = {};
+                        selects.forEach(s => { if(s.value) counts[s.value] = (counts[s.value] || 0) + 1; });
+                        optionItems.forEach(item => {
+                            const val = item.dataset.opt;
+                            item.classList.remove('line-through', 'opacity-50', 'bg-red-100', 'text-red-600');
+                            if (counts[val] >= 1) {
+                                item.classList.add('line-through', 'opacity-50');
+                            } 
+                        });
+                    }
+                    selects.forEach(s => s.addEventListener('change', updateOptions));
+
+                    document.querySelectorAll('.tool-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const action = btn.dataset.action;
+                            if (['select', 'pen', 'eraser'].includes(action)) {
+                                tool = action;
+                                document.querySelectorAll('.tool-btn[data-group="mode"]').forEach(b => b.classList.remove('bg-blue-100', 'text-blue-700'));
+                                btn.classList.add('bg-blue-100', 'text-blue-700');
+                                togglePointerEvents(tool !== 'select');
+                            } else if (action === 'undo') undo();
+                            else if (action === 'redo') redo();
+                            else if (action === 'clear') { strokes = []; saveState(); redraw(); }
+                            else if (action === 'edit') toggleEdit(btn);
+                            else if (action === 'export-pdf') exportResultPdf();
+                        });
+                    });
+
+                    function togglePointerEvents(enableDrawing) {
+                        const val = enableDrawing ? 'auto' : 'none';
+                        canvasLeft.style.pointerEvents = val;
+                        canvasRight.style.pointerEvents = val;
+                    }
+
+                    document.addEventListener('keydown', (e) => {
+                         // Export PDF shortcut in generated HTML
+                         if (e.altKey && e.key.toLowerCase() === 'p') {
+                             e.preventDefault();
+                             exportResultPdf();
+                         }
+                    });
+
+                    document.getElementById('color-picker').addEventListener('input', e => color = e.target.value);
+                    document.getElementById('size-slider').addEventListener('input', e => size = e.target.value);
+                    document.getElementById('font-size-slider').addEventListener('input', e => { testContent.style.fontSize = e.target.value + 'px'; resizeCanvases(); });
+                    document.getElementById('line-height-slider').addEventListener('input', e => { testContent.style.lineHeight = e.target.value; resizeCanvases(); });
+
+                    let isDrawing = false;
+                    let activePanel = null; 
+
+                    function getPoint(e, canvas) {
+                        const rect = canvas.getBoundingClientRect();
+                        return {
+                            x: e.clientX - rect.left,
+                            y: e.clientY - rect.top,
+                            p: e.pressure || 0.5
+                        };
+                    }
+
+                    [canvasLeft, canvasRight].forEach(canvas => {
+                        const panelName = canvas.id === 'canvas-left' ? 'left' : 'right';
+                        
+                        canvas.addEventListener('pointerdown', e => {
+                            if (tool === 'select') return;
+                            isDrawing = true;
+                            activePanel = panelName;
+                            
+                            const p = getPoint(e, canvas);
+                            
+                            if (tool === 'eraser') {
+                                checkEraserHit(p.x, p.y, panelName);
+                            } else {
+                                strokes.push({ 
+                                    type: tool, 
+                                    color: color, 
+                                    baseSize: parseInt(size), 
+                                    points: [p],
+                                    panel: panelName
+                                });
+                            }
+                        });
+
+                        canvas.addEventListener('pointermove', e => {
+                            if (!isDrawing || activePanel !== panelName) return;
+                            e.preventDefault();
+                            const p = getPoint(e, canvas);
+                            
+                            if (tool === 'eraser') {
+                                checkEraserHit(p.x, p.y, panelName);
+                            } else {
+                                const currentStroke = strokes[strokes.length - 1];
+                                currentStroke.points.push(p);
+                                redraw();
+                            }
+                        });
+
+                        canvas.addEventListener('pointerup', endStroke);
+                        canvas.addEventListener('pointerleave', endStroke);
+                    });
+
+                    function endStroke() {
+                        if (isDrawing) {
+                            isDrawing = false;
+                            activePanel = null;
+                            saveState();
+                        }
+                    }
+
+                    function checkEraserHit(x, y, panel) {
+                        let hit = false;
+                        const threshold = 10 + parseInt(size); 
+                        
+                        for (let i = strokes.length - 1; i >= 0; i--) {
+                            const s = strokes[i];
+                            if (s.panel !== panel) continue;
+                            
+                            for (let p of s.points) {
+                                const dist = Math.sqrt((p.x - x)**2 + (p.y - y)**2);
+                                if (dist < threshold) {
+                                    strokes.splice(i, 1);
+                                    hit = true;
+                                    break; 
+                                }
+                            }
+                            if (hit) break;
+                        }
+                        if (hit) redraw();
+                    }
+
+                    function redraw() {
+                        ctxLeft.clearRect(0, 0, canvasLeft.width, canvasLeft.height);
+                        ctxRight.clearRect(0, 0, canvasRight.width, canvasRight.height);
+
+                        [ctxLeft, ctxRight].forEach(ctx => {
+                            ctx.lineCap = 'round';
+                            ctx.lineJoin = 'round';
+                        });
+
+                        strokes.forEach(stroke => {
+                            if (stroke.points.length < 1) return;
+                            
+                            const ctx = stroke.panel === 'left' ? ctxLeft : ctxRight;
+
+                            ctx.strokeStyle = stroke.color;
+                            
+                            for (let i = 0; i < stroke.points.length - 1; i++) {
+                                const p1 = stroke.points[i];
+                                const p2 = stroke.points[i+1];
+                                
+                                ctx.beginPath();
+                                ctx.moveTo(p1.x, p1.y);
+                                ctx.lineTo(p2.x, p2.y);
+                                
+                                const avgPressure = (p1.p + p2.p) / 2;
+                                ctx.lineWidth = stroke.baseSize * (avgPressure * 2); 
+                                ctx.stroke();
+                            }
+                            
+                            if (stroke.points.length === 1) {
+                                const p = stroke.points[0];
+                                ctx.fillStyle = stroke.color;
+                                ctx.beginPath();
+                                ctx.arc(p.x, p.y, stroke.baseSize * p.p, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        });
+                    }
+
+                    function saveState() {
+                        history = history.slice(0, historyIndex + 1);
+                        history.push(JSON.parse(JSON.stringify(strokes)));
+                        historyIndex++;
+                    }
+                    function undo() {
+                        if (historyIndex > 0) {
+                            historyIndex--;
+                            strokes = JSON.parse(JSON.stringify(history[historyIndex]));
+                            redraw();
+                        } else {
+                            strokes = [];
+                            historyIndex = -1;
+                            redraw();
+                        }
+                    }
+                    function redo() {
+                        if (historyIndex < history.length - 1) {
+                            historyIndex++;
+                            strokes = JSON.parse(JSON.stringify(history[historyIndex]));
+                            redraw();
+                        }
+                    }
+
+                    function toggleEdit(btn) {
+                        isEditMode = !isEditMode;
+                        // 只切換標題和內容的文字編輯權限，不影響標註功能
+                        testContent.contentEditable = isEditMode;
+                        titleEl.contentEditable = isEditMode;
+                        if(isEditMode) {
+                            btn.textContent = '儲存內容';
+                            btn.classList.add('bg-green-100', 'text-green-700');
+                            testContent.classList.add('outline-dashed', 'outline-2', 'outline-blue-300');
+                        } else {
+                            btn.textContent = '啟用編輯';
+                            btn.classList.remove('bg-green-100', 'text-green-700');
+                            testContent.classList.remove('outline-dashed', 'outline-2', 'outline-blue-300');
+                            resizeCanvases();
+                        }
+                    }
+
+                    // 文字標註：無需開啟編輯模式即可使用
+                    document.addEventListener('selectionchange', () => {
+                        // 如果是在畫畫，不顯示選單
+                        if (tool !== 'select') return;
+
+                        const sel = window.getSelection();
+                        // 確保選取範圍在文章內容中
+                        if (!sel.isCollapsed && testContent.contains(sel.anchorNode)) {
+                            const range = sel.getRangeAt(0);
+                            const rect = range.getBoundingClientRect();
+                            contextMenu.style.top = (rect.bottom + window.scrollY + 10) + 'px';
+                            contextMenu.style.left = (rect.left + (rect.width/2) - (contextMenu.offsetWidth/2)) + 'px';
+                            contextMenu.classList.remove('hidden');
+                        } else {
+                            // 延遲隱藏
+                            setTimeout(() => {
+                                if (!contextMenu.contains(document.activeElement)) {
+                                    contextMenu.classList.add('hidden');
+                                }
+                            }, 200);
+                        }
+                    });
+
+                    // 套用樣式時，暫時開啟編輯權限，完成後關閉
+                    function applyFormat(cmd, val=null) {
+                        const wasEditable = testContent.isContentEditable;
+                        if (!wasEditable) testContent.contentEditable = true;
+                        
+                        document.execCommand('styleWithCSS', false, true);
+                        document.execCommand(cmd, false, val);
+                        document.execCommand('styleWithCSS', false, false);
+                        
+                        if (!wasEditable) testContent.contentEditable = false;
+                        
+                        contextMenu.classList.add('hidden');
+                        window.getSelection().removeAllRanges();
+                    }
+
+                    function exportResultPdf() {
+                        const btn = document.querySelector('[data-action="export-pdf"]');
+                        const originalText = btn.textContent;
+                        btn.textContent = '處理中...';
+                        
+                        const printContainer = document.createElement('div');
+                        printContainer.style.position = 'absolute'; 
+                        printContainer.style.left = '-9999px';
+                        printContainer.style.width = '1100px';
+                        printContainer.style.backgroundColor = '#fff';
+                        printContainer.style.padding = '40px';
+                        printContainer.style.display = 'flex';
+                        printContainer.style.gap = '40px';
+
+                        // Add author to re-exported PDF
+                        const pAuthor = document.createElement('div');
+                        pAuthor.textContent = 'Created by En-Hui & Gemini';
+                        pAuthor.style.position = 'absolute';
+                        pAuthor.style.top = '20px';
+                        pAuthor.style.right = '40px';
+                        pAuthor.style.fontSize = '12px';
+                        pAuthor.style.color = '#888';
+                        printContainer.appendChild(pAuthor);
+
+                        // Clone Left Panel
+                        const pLeft = leftPanel.cloneNode(true);
+                        pLeft.style.width = '300px';
+                        pLeft.style.border = 'none';
+                        pLeft.style.overflow = 'visible';
+                        const oldCanvasL = pLeft.querySelector('canvas');
+                        if(oldCanvasL) oldCanvasL.remove();
+                        
+                        // Clone Right Panel Content
+                        const pRight = document.createElement('div');
+                        pRight.style.flex = '1';
+                        pRight.style.position = 'relative'; // for canvas positioning context
+                        
+                        const pTitle = titleEl.cloneNode(true);
+                        pRight.appendChild(pTitle);
+                        
+                        const pContent = testContent.cloneNode(true);
+                        pContent.id = 'print-content';
+                        
+                        const selects = rightPanel.querySelectorAll('select');
+                        const pSelects = pContent.querySelectorAll('select');
+                        pSelects.forEach((ps, i) => {
+                             const val = selects[i].value || '_______';
+                             const span = document.createElement('span');
+                             span.textContent = val;
+                             span.style.fontWeight = 'bold';
+                             span.style.textDecoration = 'underline';
+                             span.style.color = '#2563eb';
+                             ps.replaceWith(span);
+                        });
+                        pRight.appendChild(pContent);
+                        
+                        printContainer.appendChild(pLeft);
+                        printContainer.appendChild(pRight);
+                        
+                        document.body.appendChild(printContainer);
+                        
+                        setTimeout(() => {
+                            const overlayCanvas = document.createElement('canvas');
+                            overlayCanvas.width = printContainer.offsetWidth;
+                            overlayCanvas.height = printContainer.offsetHeight;
+                            overlayCanvas.style.position = 'absolute';
+                            overlayCanvas.style.top = '0';
+                            overlayCanvas.style.left = '0';
+                            overlayCanvas.style.pointerEvents = 'none';
+                            printContainer.appendChild(overlayCanvas);
+                            
+                            const ctxOverlay = overlayCanvas.getContext('2d');
+                            
+                            // 手動偏移量 (需對應 printContainer padding & layout)
+                            // 左欄：padding 40px
+                            const leftOffsetX = 40; 
+                            // 左欄內的 options-bank-container 相對 leftPanel 的位移 (通常是 0)
+                            // 注意：optionsContainer 在原畫面有 padding, 這裡 clone 後也有
+                            const leftContainerY = 40 + (optionsContainer.offsetTop || 0);
+
+                            // 右欄：padding 40 + 300 + gap 40 = 380
+                            const rightOffsetX = 380;
+                            // 右欄內的 test-content 位移 (標題高度 + margin)
+                            // 在 printContainer 中，pContent 是 pRight 的第二個子元素
+                            const rightContainerY = 40 + pTitle.offsetHeight + 32; // 32 is mb-8 of title approximately
+
+                            ctxOverlay.lineCap = 'round';
+                            ctxOverlay.lineJoin = 'round';
+                            
+                            strokes.forEach(stroke => {
+                                if (stroke.points.length < 1) return;
+                                
+                                const offsetX = stroke.panel === 'left' ? leftOffsetX : rightOffsetX;
+                                // 原本的 y 是相對於 container 的 top，現在要加上在 print 頁面的 offset
+                                // 但要注意：原本 canvasLeft.style.top 已經是 container.offsetTop
+                                // 所以 stroke.points.y 是相對於 container 的
+                                // 我們只需要加上 container 在 printContainer 中的 y 即可
+                                
+                                // 這裡簡化：假設 layout 類似，微調
+                                const offsetY = stroke.panel === 'left' ? 40 + 24 + 20 : 40 + pTitle.offsetHeight + 32; 
+                                // left panel padding top (24) + h3 margin (20) roughly
+                                
+                                ctxOverlay.strokeStyle = stroke.color;
+                                ctxOverlay.fillStyle = stroke.color;
+                                
+                                if (stroke.points.length === 1) {
+                                     const p = stroke.points[0];
+                                     ctxOverlay.beginPath();
+                                     ctxOverlay.arc(p.x + offsetX, p.y + offsetY, stroke.baseSize * p.p, 0, Math.PI * 2);
+                                     ctxOverlay.fill();
+                                     return;
+                                }
+
+                                for (let i = 0; i < stroke.points.length - 1; i++) {
+                                    const p1 = stroke.points[i];
+                                    const p2 = stroke.points[i+1];
+                                    
+                                    ctxOverlay.beginPath();
+                                    ctxOverlay.moveTo(p1.x + offsetX, p1.y + offsetY);
+                                    ctxOverlay.lineTo(p2.x + offsetX, p2.y + offsetY);
+                                    
+                                    const avgPressure = (p1.p + p2.p) / 2;
+                                    ctxOverlay.lineWidth = stroke.baseSize * (avgPressure * 2); 
+                                    ctxOverlay.stroke();
+                                }
+                            });
+                            
+                             html2canvas(printContainer, { scale: 1.5 }).then(c => {
+                                 const imgData = c.toDataURL('image/jpeg');
+                                 const { jsPDF } = window.jspdf;
+                                 const pdf = new jsPDF(c.width > c.height ? 'l' : 'p', 'mm', 'a4');
+                                 const w = pdf.internal.pageSize.getWidth();
+                                 const h = (c.height * w) / c.width;
+                                 pdf.addImage(imgData, 'JPEG', 0, 0, w, h);
+                                 pdf.save('result.pdf');
+                                 document.body.removeChild(printContainer);
+                                 btn.textContent = originalText;
+                            });
+                            
+                        }, 500);
+                    }
+                `;
+
+                // HTML 模板
+                const scriptTagEnd = '<' + '/script>';
+                const html = `
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>${title}</title>
+    <script src="https://cdn.tailwindcss.com">${scriptTagEnd}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js">${scriptTagEnd}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">${scriptTagEnd}
+    <style>
+        body { font-family: sans-serif; overflow: hidden; background: #f1f5f9; }
+        /* 卷軸美化 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* 左側選項 */
+        .option-item { 
+            padding: 12px 16px; 
+            background: white; 
+            border-radius: 8px; 
+            border: 1px solid #e2e8f0; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+            width: 100%; 
+            text-align: left; 
+            font-weight: 500; 
+            margin-bottom: 12px; 
+            line-height: 1.5;
+        }
+        
+        .cloze-select { border: none; border-bottom: 2px solid #94a3b8; background: transparent; padding: 0 4px; font-weight: bold; color: #2563eb; cursor: pointer; }
+        .cloze-select:focus { outline: none; border-color: #2563eb; }
+        
+        /* 內容區樣式 */
+        #test-content { outline: none; min-height: 60vh; position: relative; z-index: 10; }
+        
+        /* 畫布樣式：確保在文字上方 */
+        canvas { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 20; }
+        #left-panel, #right-panel { position: relative; }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+    <!-- 工具列 -->
+    <div class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 shadow-sm z-50 shrink-0">
+        <div class="flex items-center gap-2">
+            <button class="tool-btn p-2 rounded hover:bg-slate-100 text-slate-600" data-action="undo" title="復原">↶</button>
+            <button class="tool-btn p-2 rounded hover:bg-slate-100 text-slate-600" data-action="redo" title="重做">↷</button>
+            <div class="w-px h-6 bg-slate-300 mx-2"></div>
+            <button class="tool-btn p-2 rounded bg-blue-100 text-blue-700 font-bold" data-group="mode" data-action="select" title="選取/作答">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M6.672 1.911a1 1 0 10-1.932.518l.259.966a1 1 0 001.932-.518l-.26-.966zM2.429 4.74a1 1 0 10-.517 1.932l.966.259a1 1 0 00.517-1.932l-.966-.26zm8.814-.569a1 1 0 00-1.415-1.414l-.707.707a1 1 0 101.415 1.415l.707-.708zm-7.071 7.072l.707-.707A1 1 0 003.465 9.12l-.708.707a1 1 0 001.415 1.415zm3.2-5.171a1 1 0 00-1.3 1.3l4 10a1 1 0 001.823.075l1.38-2.759 3.018 3.02a1 1 0 001.414-1.415l-3.019-3.02 2.76-1.379a1 1 0 00-.076-1.822l-10-4z" clip-rule="evenodd" />
+                </svg>
+            </button>
+            <button class="tool-btn p-2 rounded hover:bg-slate-100 text-slate-600" data-group="mode" data-action="pen" title="畫筆">✏️</button>
+            <button class="tool-btn p-2 rounded hover:bg-slate-100 text-slate-600 text-xl" data-group="mode" data-action="eraser" title="橡皮擦">❌</button>
+            <input type="color" id="color-picker" value="#ef4444" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0 ml-2">
+            <input type="range" id="size-slider" min="1" max="20" value="3" class="w-24 ml-2" title="筆畫粗細">
+            <button class="tool-btn ml-2 p-2 text-sm text-red-500 hover:bg-red-50 rounded" data-action="clear">🗑️ 清除筆跡</button>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-xs text-slate-400 font-medium hidden md:block">Created by En-Hui & Gemini</span>
+            <div class="flex flex-col w-32">
+                <label class="text-[10px] text-slate-400">字體大小</label>
+                <input type="range" id="font-size-slider" min="14" max="32" value="18" class="h-1">
+            </div>
+            <div class="flex flex-col w-32">
+                <label class="text-[10px] text-slate-400">行高</label>
+                <input type="range" id="line-height-slider" min="1.2" max="3.0" value="2.0" step="0.1" class="h-1">
+            </div>
+            <button class="tool-btn px-4 py-2 rounded bg-slate-100 text-slate-700 font-medium text-sm hover:bg-slate-200" data-action="edit">啟用編輯</button>
+            <button class="tool-btn px-4 py-2 rounded bg-indigo-600 text-white font-medium text-sm hover:bg-indigo-700" data-action="export-pdf" title="快速鍵: Alt + P">匯出作答結果 (PDF)</button>
+        </div>
+    </div>
+
+    <!-- 主區域 -->
+    <div class="flex flex-1 overflow-hidden relative bg-slate-100">
+        <!-- 左欄：選項 -->
+        <div id="left-panel" class="w-80 bg-white border-r border-slate-200 p-6 overflow-y-auto shrink-0 flex flex-col z-10 relative">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">OPTIONS</h3>
+            <div id="options-bank-container" class="flex flex-col relative">
+                ${optionsList}
+            </div>
+            <canvas id="canvas-left"></canvas>
+        </div>
+
+        <!-- 右欄：內容 -->
+        <div id="right-panel" class="flex-1 p-8 md:p-12 overflow-y-auto z-10 relative">
+            <div class="max-w-3xl mx-auto bg-white p-10 rounded-2xl shadow-sm min-h-full relative z-30">
+                <h1 id="doc-title" class="text-3xl font-bold mb-8 text-slate-800 border-b pb-4">${title}</h1>
+                <div id="test-content" class="text-lg leading-loose text-slate-700">
+                    ${contentHtml}
+                </div>
+                <canvas id="canvas-right"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="fixed hidden bg-white shadow-xl rounded-lg border border-slate-200 py-1 z-[100] w-32">
+        <button onclick="applyFormat('hiliteColor', '#fef08a')" class="block w-full text-left px-4 py-2 hover:bg-slate-50 text-sm flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-yellow-200 border"></span> 螢光筆</button>
+        <button onclick="applyFormat('underline')" class="block w-full text-left px-4 py-2 hover:bg-slate-50 text-sm flex items-center gap-2"><span class="font-bold underline">U</span> 底線</button>
+        <div class="h-px bg-slate-100 my-1"></div>
+        <button onclick="applyFormat('removeFormat')" class="block w-full text-left px-4 py-2 hover:bg-slate-50 text-sm text-red-500">移除標註</button>
+    </div>
+
+    <script>${script}${scriptTagEnd}
+</body>
+</html>`;
+
+                const blob = new Blob([html], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${title}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+        });
+    </script>
+</body>
+</html>
