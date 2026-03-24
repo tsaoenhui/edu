@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>法庭諭知：學生輔導與特教權限解析系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        body {
+            font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+            background-color: #f8fafc;
+        }
+        .tab-active {
+            border-bottom: 2px solid #1e3a8a;
+            color: #1e3a8a;
+            font-weight: bold;
+        }
+        .tab-inactive {
+            border-bottom: 2px solid transparent;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Chosen Palette: Legal Slate & Navy (bg-slate-50, text-slate-800, accent-blue-900, warnings-red-700, dos-emerald-700) -->
+    <!-- Application Structure Plan: The SPA is structured as an interactive "Legal Briefing Portal". It opens with the Judge's pronouncement (setting the persona). The core is a tabbed interface ("Tripartite Authority Analysis") allowing users to switch between General Students, Counseling Cases, and Special Ed Cases to see explicit Do's and Don'ts. A visual radar chart compares the degree of intervention across these groups. Finally, a "Statute Explorer" allows direct querying of the provided legal text. This structure transforms static legal text into an actionable, comparative compliance tool. -->
+    <!-- Visualization & Content Choices: Goal: Compare legal authorities -> Presentation: Interactive Tabs for detailed Do/Don't lists + Radar Chart for conceptual comparison -> Interaction: Tab clicking, chart hover -> Justification: Tabs prevent information overload while allowing direct comparison. Radar chart visually synthesizes the 'intensity' of rights/interventions (not explicitly quantified in text, but conceptually derived from the legal framework) -> Library: Chart.js (Canvas). NO SVG/Mermaid used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <!-- Header / Judge Persona Intro -->
+    <header class="bg-blue-900 text-white p-6 shadow-md border-b-4 border-amber-500">
+        <div class="max-w-6xl mx-auto flex items-center gap-4">
+            <span class="text-4xl">⚖️</span>
+            <div>
+                <h1 class="text-2xl font-bold tracking-wider">法庭諭知系統：學生輔導與特教權限解析</h1>
+                <p class="text-blue-200 text-sm mt-1">本席依據《學生輔導法》及相關教育法規為您提供專業指引</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-6xl mx-auto w-full p-4 md:p-6 space-y-8">
+        
+        <!-- Judge's Opening Statement -->
+        <section class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-900">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><span class="text-2xl">👨‍⚖️</span> 裁判官宣示</h2>
+            <div class="text-slate-700 leading-relaxed space-y-3">
+                <p>您好，本席已詳閱您所提交之《學生輔導法》相關法規附卷。針對您所提<strong>「輔導個案與特教個案、一般學生之三方權限與特殊待遇差異」</strong>一案，本席在此進行釐清。</p>
+                <p>在教育場域中，此三類學生的權限與適用法規有著明確的邊界。依據卷附《學生輔導法》第1條但書規定：「特殊教育法...另有規定者，從其規定。」這意味著特教個案的法定權利位階具有特殊性。以下本席將法規轉化為具體的<strong>「合規建議 (Do)」</strong>與<strong>「違法風險 (Don't)」</strong>，協助教育工作者與家長依法行政、保障學生權益。</p>
+                <p class="text-sm text-red-600 font-bold bg-red-50 p-2 rounded">【諭知事項】本指引僅供實務參考，遭遇具體且複雜之個案爭議時，正式處置仍應依法定程序並諮詢主管機關或法律顧問。</p>
+            </div>
+        </section>
+
+        <!-- Tripartite Comparison Tabs -->
+        <section class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-xl font-bold flex items-center gap-2"><span class="text-2xl">📑</span> 三方權限與處置指引 (Do & Don't)</h2>
+                <p class="text-sm text-slate-500 mt-1">請點選下方頁籤，檢閱不同身分別別學生的法定處置邊界。</p>
+            </div>
+            
+            <div class="flex flex-col md:flex-row border-b border-slate-200">
+                <button onclick="switchTab('general')" id="tab-general" class="tab-active flex-1 py-3 px-4 text-center hover:bg-slate-50 transition-colors focus:outline-none">🧑 一般學生 (發展性輔導)</button>
+                <button onclick="switchTab('counseling')" id="tab-counseling" class="tab-inactive flex-1 py-3 px-4 text-center hover:bg-slate-50 transition-colors focus:outline-none">🗣️ 輔導個案 (介入/處遇性輔導)</button>
+                <button onclick="switchTab('specialed')" id="tab-specialed" class="tab-inactive flex-1 py-3 px-4 text-center hover:bg-slate-50 transition-colors focus:outline-none">🧩 特教個案 (特殊教育法)</button>
+            </div>
+
+            <div class="p-6">
+                <!-- General Students Content -->
+                <div id="content-general" class="block space-y-4">
+                    <div class="bg-slate-100 p-4 rounded text-sm">
+                        <strong>📖 法律依據：</strong>《學生輔導法》第7條第1款（發展性輔導工作）。
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="border border-emerald-200 rounded-lg overflow-hidden">
+                            <div class="bg-emerald-50 text-emerald-800 font-bold p-3 border-b border-emerald-200 flex items-center gap-2"><span>✅</span> 可行事項 (合規建議 - Do)</div>
+                            <ul class="p-4 space-y-2 text-sm text-slate-700 list-disc list-inside">
+                                <li>依據學校整體規劃，辦理全校性、各年級之團體心理測驗與解釋。</li>
+                                <li>提供全體學生心理健康促進活動。</li>
+                                <li>導師進行初級預防與一般性班級輔導。</li>
+                                <li>提供教師及家長一般性的輔導專業諮詢。</li>
+                            </ul>
+                        </div>
+                        <div class="border border-red-200 rounded-lg overflow-hidden">
+                            <div class="bg-red-50 text-red-800 font-bold p-3 border-b border-red-200 flex items-center gap-2"><span>❌</span> 禁止事項 (違法風險 - Don't)</div>
+                            <ul class="p-4 space-y-2 text-sm text-slate-700 list-disc list-inside">
+                                <li>未經評估與家長同意，強制作為介入性輔導個案。</li>
+                                <li>在無具體適應困難事證下，強制要求其接受心理諮商。</li>
+                                <li>過度干預其一般發展歷程，或隨意貼上心理疾病標籤。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Counseling Cases Content -->
+                <div id="content-counseling" class="hidden space-y-4">
+                    <div class="bg-blue-50 p-4 rounded text-sm border border-blue-100">
+                        <strong>📖 法律依據：</strong>《學生輔導法》第7條第2款（介入性輔導工作）及第3款（處遇性輔導，由專業輔導人員執行）。<br>
+                        <strong>💡 權限解析：</strong>學校必須為其量身打造計畫，且可動用校內外專業網絡資源，要求親師生系統配合。
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="border border-emerald-200 rounded-lg overflow-hidden">
+                            <div class="bg-emerald-50 text-emerald-800 font-bold p-3 border-b border-emerald-200 flex items-center gap-2"><span>✅</span> 可行事項 (合規建議 - Do)</div>
+                            <ul class="p-4 space-y-2 text-sm text-slate-700 list-disc list-inside">
+                                <li><strong>必須</strong>評估其個別化需求，並訂定「個別化之輔導方案」與個案管理。</li>
+                                <li>提供個別輔導諮商、小團體輔導及特定心理測驗。</li>
+                                <li>協助親師生進行「系統會談」；必要時，得協同導師及學務處進行家庭訪問。</li>
+                                <li>召開個案會議，綜整適應狀態，並盤點、轉介校內外專業資源網絡（如社工、醫療）。</li>
+                            </ul>
+                        </div>
+                        <div class="border border-red-200 rounded-lg overflow-hidden">
+                            <div class="bg-red-50 text-red-800 font-bold p-3 border-b border-red-200 flex items-center gap-2"><span>❌</span> 禁止事項 (違法風險 - Don't)</div>
+                            <ul class="p-4 space-y-2 text-sm text-slate-700 list-disc list-inside">
+                                <li>拒絕提供輔導方案，或僅以常規懲處代替輔導介入。</li>
+                                <li>未經法定程序或專業評估，逕自將輔導紀錄對無關人員公開（違反保密原則）。</li>
+                                <li>當評估有轉介醫療或社政網絡需求時，學校怠於進行個案轉介。</li>
+                                <li>混淆為特教個案：在未取得特教身分前，不能直接給予特教法規定的考試特殊評量或特教經費補助。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Special Ed Cases Content -->
+                <div id="content-specialed" class="hidden space-y-4">
+                    <div class="bg-amber-50 p-4 rounded text-sm border border-amber-100">
+                        <strong>📖 法律依據：</strong>《學生輔導法》第1條但書、《特殊教育法》（補充依據）。<br>
+                        <strong>💡 權限解析：</strong>位階最高，具有強制性的教育資源分配與調整權。輔導系統此時為輔助角色，須配合特教計畫。
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="border border-emerald-200 rounded-lg overflow-hidden">
+                            <div class="bg-emerald-50 text-emerald-800 font-bold p-3 border-b border-emerald-200 flex items-center gap-2"><span>✅</span> 可行事項 (合規建議 - Do)</div>
+                            <ul class="p-4 space-y-2 text-sm text-slate-700 list-disc list-inside">
+                                <li><strong>必須</strong>依法擬定「個別化教育計畫」(IEP)，且具法定強制力。</li>
+                                <li>提供考試評量調整（如延長時間、報讀）、環境設施調整等特殊待遇。</li>
+                                <li>提供相關專業服務（如職能治療、物理治療、語言治療等）。</li>
+                                <li>輔導教師應配合IEP，提供情緒行為支持或心理輔導作為「特教相關服務」的一部分。</li>
+                            </ul>
+                        </div>
+                        <div class="border border-red-200 rounded-lg overflow-hidden">
+                            <div class="bg-red-50 text-red-800 font-bold p-3 border-b border-red-200 flex items-center gap-2"><span>❌</span> 禁止事項 (違法風險 - Don't)</div>
+                            <ul class="p-4 space-y-2 text-sm text-slate-700 list-disc list-inside">
+                                <li>以「已提供輔導資源」為由，拒絕或剝奪其依法應享有的特殊教育資源及評量調整。</li>
+                                <li>學校輔導系統與特教系統各自為政，未在IEP會議中整合輔導方案。</li>
+                                <li>忽視家長在特教法中被賦予的強勢參與權（如拒絕家長參與IEP會議）。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Visualization Section -->
+        <section class="grid lg:grid-cols-2 gap-6">
+            <!-- Radar Chart -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-bold mb-4 border-l-4 border-blue-900 pl-2">📊 權限與資源強度雷達圖</h2>
+                <p class="text-sm text-slate-500 mb-4">本席依據法理精神，將三類學生在法規上的強制力與資源傾斜程度進行量化比較。數值越高，代表法規賦予的特權或學校義務越重。</p>
+                <div class="chart-container">
+                    <canvas id="authorityChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Law Explorer (Interactive Text) -->
+            <div class="bg-white rounded-lg shadow p-6 flex flex-col">
+                <h2 class="text-xl font-bold mb-4 border-l-4 border-blue-900 pl-2">🔍 卷附法條檢索</h2>
+                <p class="text-sm text-slate-500 mb-4">查閱您所上傳之《學生輔導法》相關條文節錄。輸入關鍵字過濾條文。</p>
+                
+                <input type="text" id="searchInput" placeholder="輸入關鍵字 (如：輔導教師、個別化)..." class="w-full p-2 border border-slate-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                
+                <div class="flex-grow overflow-y-auto max-h-80 border border-slate-200 rounded p-4 bg-slate-50 space-y-4" id="lawList">
+                    <!-- Law items populated by JS -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-800 text-slate-300 py-6 text-center text-sm">
+        <p>法庭諭知系統：學生輔導與特教權限解析 &copy; 2026</p>
+        <p class="mt-1">聲明：本系統為法理邏輯分析工具，非正式法律判決書。</p>
+    </footer>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            currentTab: 'general'
+        };
+
+        // --- Data Storage ---
+        const laws = [
+            { article: "第 1 條", content: "為促進與維護學生身心健康及全人發展，並健全學生輔導工作，特制定本法。學生輔導，依本法之規定。但特殊教育法或少年矯正學校相關法律另有規定者，從其規定。" },
+            { article: "第 2 條", content: "本法所稱主管機關：在中央為教育部；在直轄市為直轄市政府；在縣（市）為縣（市）政府。本法所定事項涉及各目的事業主管機關業務時，各該機關應配合辦理。" },
+            { article: "第 3 條", content: "本法用詞定義：一、學校：指公私立各級學校... 二、輔導教師：指符合...從事學生輔導工作者。三、專業輔導人員：指具有臨床心理師、諮商心理師或社會工作師證書...從事學生輔導工作者。" },
+            { article: "第 7 條 (發展性)", content: "一、發展性輔導工作：（一）依據介入性與處遇性輔導學生常見議題，提供全校輔導工作規劃建議。（二）協助或辦理各年級團體心理測驗之施測與解釋。（三）提供教師、法定代理人或實際照顧者輔導專業諮詢。" },
+            { article: "第 7 條 (介入性)", content: "二、介入性輔導工作：（一）評估學生之個別化輔導需求，並依其需求訂定個別化之輔導方案與個案管理。（二）提供個別輔導諮商、班級輔導、團體輔導...（三）協助親師生進行系統會談；必要時協同家庭訪問。（四）召開個案會議，盤點專業資源網絡。（五）評估轉介需求。" }
+        ];
+
+        // --- Interaction Handling ---
+        
+        // Tab Switching Logic
+        window.switchTab = function(tabName) {
+            // Update state
+            state.currentTab = tabName;
+            
+            // DOM Elements
+            const tabs = ['general', 'counseling', 'specialed'];
+            
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                const content = document.getElementById(`content-${t}`);
+                
+                if (t === tabName) {
+                    btn.classList.remove('tab-inactive');
+                    btn.classList.add('tab-active');
+                    content.classList.remove('hidden');
+                    content.classList.add('block');
+                } else {
+                    btn.classList.remove('tab-active');
+                    btn.classList.add('tab-inactive');
+                    content.classList.remove('block');
+                    content.classList.add('hidden');
+                }
+            });
+        };
+
+        // Law Explorer Filtering
+        const lawListElement = document.getElementById('lawList');
+        const searchInput = document.getElementById('searchInput');
+
+        function renderLaws(filterText = '') {
+            lawListElement.innerHTML = '';
+            const filteredLaws = laws.filter(law => 
+                law.article.includes(filterText) || law.content.includes(filterText)
+            );
+
+            if (filteredLaws.length === 0) {
+                lawListElement.innerHTML = '<p class="text-slate-500 italic">查無相關條文。</p>';
+                return;
+            }
+
+            filteredLaws.forEach(law => {
+                const highlightContent = filterText 
+                    ? law.content.split(filterText).join(`<span class="bg-amber-200 text-slate-900 font-bold">${filterText}</span>`)
+                    : law.content;
+
+                const item = document.createElement('div');
+                item.className = 'border-l-4 border-blue-500 pl-3 py-1';
+                item.innerHTML = `
+                    <h3 class="font-bold text-blue-900 mb-1">${law.article}</h3>
+                    <p class="text-sm text-slate-700 leading-relaxed">${highlightContent}</p>
+                `;
+                lawListElement.appendChild(item);
+            });
+        }
+
+        searchInput.addEventListener('input', (e) => renderLaws(e.target.value));
+
+        // --- Chart.js Initialization ---
+        function initChart() {
+            const ctx = document.getElementById('authorityChart').getContext('2d');
+            
+            const data = {
+                labels: [
+                    ['個別化計畫', '法定位階'], 
+                    ['專業人員', '介入強制力'], 
+                    ['系統性會談', '家長參與義務'], 
+                    ['特殊考場', '與評量調整'], 
+                    ['外部網絡', '轉介資源優先權']
+                ],
+                datasets: [
+                    {
+                        label: '一般學生',
+                        data: [1, 1, 1, 1, 1],
+                        fill: true,
+                        backgroundColor: 'rgba(148, 163, 184, 0.2)', // Slate
+                        borderColor: 'rgb(148, 163, 184)',
+                        pointBackgroundColor: 'rgb(148, 163, 184)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(148, 163, 184)'
+                    },
+                    {
+                        label: '輔導個案',
+                        data: [4, 4, 3, 2, 4],
+                        fill: true,
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)', // Blue
+                        borderColor: 'rgb(59, 130, 246)',
+                        pointBackgroundColor: 'rgb(59, 130, 246)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(59, 130, 246)'
+                    },
+                    {
+                        label: '特教個案',
+                        data: [5, 5, 5, 5, 5],
+                        fill: true,
+                        backgroundColor: 'rgba(245, 158, 11, 0.2)', // Amber
+                        borderColor: 'rgb(245, 158, 11)',
+                        pointBackgroundColor: 'rgb(245, 158, 11)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(245, 158, 11)'
+                    }
+                ]
+            };
+
+            const config = {
+                type: 'radar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            pointLabels: {
+                                font: {
+                                    family: "'Microsoft JhengHei', sans-serif",
+                                    size: 12
+                                },
+                                color: '#475569'
+                            },
+                            ticks: {
+                                min: 0,
+                                max: 5,
+                                stepSize: 1,
+                                display: false // Hide numbers on the axis for cleaner look
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    family: "'Microsoft JhengHei', sans-serif"
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': 強度 ';
+                                    }
+                                    if (context.parsed.r !== null) {
+                                        label += context.parsed.r + ' / 5';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                },
+            };
+
+            new Chart(ctx, config);
+        }
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            renderLaws();
+            initChart();
+        });
+    </script>
+</body>
+</html>

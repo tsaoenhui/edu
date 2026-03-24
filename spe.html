@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>私立中學特教與輔導法規實務指引</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #F9FAFB; color: #1F2937; }
+        .chart-container { position: relative; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+        .tab-btn { transition: all 0.3s ease; }
+        .tab-active { background-color: #3B82F6; color: white; border-color: #3B82F6; }
+        .tab-inactive { background-color: white; color: #4B5563; border-color: #D1D5DB; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid #E5E7EB; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .accordion-content { transition: max-height 0.3s ease-in-out; overflow: hidden; max-height: 0; }
+        .accordion-open { max-height: 500px; }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+
+    <!-- Chosen Palette: Warm Neutrals with Trustful Blue Accents (Slate, Blue, Emerald) -->
+    <!-- Application Structure Plan: The SPA is structured logically for a private school special ed teacher. 1. Introduction & Needs Assessment (to establish context). 2. Three-way Comparison Matrix (to directly answer the prompt). 3. Radar Chart (for visual impact of authority differences). 4. Practical Administrative & Legal Advice (to fulfill the consultant persona). This structure moves from conceptual understanding to practical, legally sound application. -->
+    <!-- Visualization & Content Choices: 1. Needs Assessment: Interactive buttons -> JS text update -> Engages user immediately. 2. Comparison: Interactive Tabbed Flex-grid -> Organizes complex legal text -> Clear distinction without SVG. 3. Radar Chart: Chart.js Canvas -> Goal: Compare authorities (Legal, Curriculum, Privacy) across 3 student types -> Visually demonstrates the "weight" of each status. 4. Accordions: HTML/JS -> Goal: Organize actionable advice -> Prevents text overload. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <header class="bg-blue-800 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold tracking-wide">⚖️ 私立中學特教與輔導法規實務指引平台</h1>
+            <p class="text-sm text-blue-200 mt-2 sm:mt-0">法律 x 特教跨領域支援系統</p>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-6xl mx-auto px-4 py-8 w-full">
+
+        <section class="mb-10 glass-panel rounded-xl p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b-2 border-blue-500 pb-2 inline-block">顧問的話與前導確認</h2>
+            <p class="text-lg text-gray-700 leading-relaxed mb-6">
+                老師您好，辛苦了！面對校內多元的學生需求以及私校評鑑壓力，釐清學生身分與法定權限是保護學生與校方的第一步。相較於一般生，<strong>輔導個案</strong>側重於心理健康與生活適應的介入；而<strong>特教個案</strong>則在教育體制上擁有最高層級的強制性調整權利。
+            </p>
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                <p class="font-medium text-gray-800 mb-3">請問您目前面臨的諮詢情境或困難點為何？（請點選）</p>
+                <div class="flex flex-wrap gap-3">
+                    <button class="scene-btn px-4 py-2 bg-white border border-blue-300 rounded shadow-sm hover:bg-blue-100 text-blue-700 transition" data-scene="dual">個案具備特教與輔導雙重身分</button>
+                    <button class="scene-btn px-4 py-2 bg-white border border-blue-300 rounded shadow-sm hover:bg-blue-100 text-blue-700 transition" data-scene="admin">家長要求特殊待遇但未具法定身分</button>
+                    <button class="scene-btn px-4 py-2 bg-white border border-blue-300 rounded shadow-sm hover:bg-blue-100 text-blue-700 transition" data-scene="eval">私校行政文書與評鑑準備</button>
+                </div>
+                <div id="scene-response" class="mt-4 p-4 bg-white rounded border border-blue-100 text-gray-700 hidden font-medium"></div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-emerald-500 pb-2 inline-block">三方權限與特殊待遇比較</h2>
+            <p class="text-gray-600 mb-6">請點擊下方按鈕，切換查看一般學生、輔導個案與特教個案在法定權益、計畫擬定與教育待遇上的核心差異。</p>
+            
+            <div class="flex flex-wrap gap-2 mb-6">
+                <button class="tab-btn tab-active px-6 py-3 rounded-t-lg font-bold border-t border-l border-r" data-target="spec-ed">📌 特教個案 (特殊教育法)</button>
+                <button class="tab-btn tab-inactive px-6 py-3 rounded-t-lg font-bold border-t border-l border-r" data-target="counseling">🟢 輔導個案 (學生輔導法)</button>
+                <button class="tab-btn tab-inactive px-6 py-3 rounded-t-lg font-bold border-t border-l border-r" data-target="general">⚪ 一般學生 (一般教育法規)</button>
+            </div>
+
+            <div class="glass-panel p-6 rounded-b-lg rounded-tr-lg min-h-[350px]">
+                
+                <div id="spec-ed" class="tab-content block animate-fade-in">
+                    <h3 class="text-xl font-bold text-blue-700 mb-4">特殊教育個案：具備最高法定教育變更權限</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-gray-800 border-b border-blue-200 pb-2 mb-2">法定計畫與程序</h4>
+                            <ul class="list-disc pl-5 text-gray-700 space-y-2">
+                                <li><strong>法源：</strong>特殊教育法 (經鑑輔會嚴格鑑定)。</li>
+                                <li><strong>核心計畫：</strong>強制訂定<strong>個別化教育計畫 (IEP)</strong>。</li>
+                                <li><strong>參與者：</strong>特教教師、普通教師、相關專業人員、家長 (具法定參與權)。</li>
+                            </ul>
+                        </div>
+                        <div class="bg-emerald-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-gray-800 border-b border-emerald-200 pb-2 mb-2">教育上的特殊待遇 (權限)</h4>
+                            <ul class="list-disc pl-5 text-gray-700 space-y-2">
+                                <li><strong>課程彈性：</strong>具備合法變更部定課程內容、學習領域免修之權力。</li>
+                                <li><strong>適性化評量：</strong>報讀、延長考試時間、獨立考場、評量方式變更(特教法§32)。</li>
+                                <li><strong>修業年限：</strong>可依法延長或縮短修業年限(特教法§14及實施辦法)。</li>
+                                <li><strong>資源挹注：</strong>專屬特教支持服務、輔具申請、專業團隊(物理/職能/心理治療)。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="counseling" class="tab-content hidden animate-fade-in">
+                    <h3 class="text-xl font-bold text-emerald-700 mb-4">輔導個案：側重心理健康與處遇性資源介入</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-emerald-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-gray-800 border-b border-emerald-200 pb-2 mb-2">法定計畫與程序</h4>
+                            <ul class="list-disc pl-5 text-gray-700 space-y-2">
+                                <li><strong>法源：</strong>學生輔導法。</li>
+                                <li><strong>核心計畫：</strong>介入性與處遇性輔導需訂定<strong>個別化輔導方案</strong>。</li>
+                                <li><strong>層級：</strong>三級輔導機制 (初級預防、二級介入轉介、三級處遇與社工/心理師介入)。</li>
+                            </ul>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-gray-800 border-b border-purple-200 pb-2 mb-2">教育上的特殊待遇 (權限)</h4>
+                            <ul class="list-disc pl-5 text-gray-700 space-y-2">
+                                <li><strong>專業介入：</strong>得優先獲得專業輔導人員 (心理師、社工師) 的諮商與處遇。</li>
+                                <li><strong>保密特權：</strong>在無自傷/傷人等例外前提下，享有極高的諮商內容保密權，部分資訊連導師或家長都須經同意才能知悉。</li>
+                                <li><strong>系統性會談：</strong>依法可召集親、師、生進行系統性溝通。</li>
+                                <li><strong>彈性限制：</strong>無法定權力直接變更學期成績計算或免除特定學科，除非併行特教身分。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="general" class="tab-content hidden animate-fade-in">
+                    <h3 class="text-xl font-bold text-gray-700 mb-4">一般學生：常規教育與發展性輔導</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-gray-100 p-4 rounded-lg">
+                            <h4 class="font-bold text-gray-800 border-b border-gray-300 pb-2 mb-2">法定計畫與程序</h4>
+                            <ul class="list-disc pl-5 text-gray-700 space-y-2">
+                                <li><strong>法源：</strong>國民教育法、高級中等教育法。</li>
+                                <li><strong>計畫：</strong>無強制個別化計畫。適用全校性或班級性的教學計畫。</li>
+                            </ul>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <h4 class="font-bold text-gray-800 border-b border-gray-300 pb-2 mb-2">教育對待</h4>
+                            <ul class="list-disc pl-5 text-gray-700 space-y-2">
+                                <li><strong>常規評量：</strong>一體適用學校常規考試規定與畢業門檻。</li>
+                                <li><strong>發展性輔導：</strong>接受學校普設之心理測驗、生涯探索與班級輔導活動。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            <div class="glass-panel p-6 rounded-xl">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">核心權限指標分析</h2>
+                <p class="text-gray-600 mb-4 text-sm">
+                    此圖表量化展示了三類學生在不同法規架構下，所擁有的權限強度。可見特教個案在教育體制面的變更權力最大，而輔導個案則在隱私保護與心理處遇資源上獲得高強度保障。
+                </p>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b-2 border-purple-500 pb-2 inline-block">實務應對與行政建議</h2>
+                
+                <div class="border border-gray-200 rounded-lg bg-white">
+                    <button class="accordion-btn w-full text-left px-6 py-4 font-bold text-gray-800 flex justify-between items-center bg-gray-50 rounded-lg focus:outline-none">
+                        <span>📝 IEP 與 輔導方案的整合 (雙重身分)</span>
+                        <span class="text-blue-500">▼</span>
+                    </button>
+                    <div class="accordion-content px-6 bg-white">
+                        <p class="py-4 text-gray-700">若學生同時具備特教與輔導身分（例如情障伴隨憂鬱），私校應召開<strong>跨專業個案會議</strong>。建議將輔導室的「個別化輔導方案」目標，以摘要形式融入特教的「IEP」情緒與行為介入方案中。行政上應明確界定：課堂行為調整由特教端主導，深度心理諮商由輔導端主責，避免資源重疊或指令衝突。</p>
+                    </div>
+                </div>
+
+                <div class="border border-gray-200 rounded-lg bg-white">
+                    <button class="accordion-btn w-full text-left px-6 py-4 font-bold text-gray-800 flex justify-between items-center bg-gray-50 rounded-lg focus:outline-none">
+                        <span>🛡️ 官方文書與會議紀錄防護原則</span>
+                        <span class="text-blue-500">▼</span>
+                    </button>
+                    <div class="accordion-content px-6 bg-white">
+                        <p class="py-4 text-gray-700">私校常面臨教育局評鑑或家長訴願。撰寫會議紀錄時，必須<strong>引經據典</strong>。例如在給予評量調整時，應於紀錄載明：「依《特殊教育法》第32條及學生IEP會議決議，提供報讀服務」。若家長要求一般生減免考試，應以書面回覆：「未經鑑輔會鑑定確認法定身分，依常態評量規定辦理，以維護程序正義與全體學生公平性」。</p>
+                    </div>
+                </div>
+
+                <div class="border border-gray-200 rounded-lg bg-white">
+                    <button class="accordion-btn w-full text-left px-6 py-4 font-bold text-gray-800 flex justify-between items-center bg-gray-50 rounded-lg focus:outline-none">
+                        <span>💬 資源分配的溝通策略</span>
+                        <span class="text-blue-500">▼</span>
+                    </button>
+                    <div class="accordion-content px-6 bg-white">
+                        <p class="py-4 text-gray-700">面對一般教師覺得「特教生有特權」的誤解，特教老師在溝通時應強調：「這不是特權，而是<strong>特教法保障的合理調整 (Reasonable Accommodation)</strong>，目的是消除學習阻礙，使其能與一般生立足於平等的起點。」</p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-800 text-white py-8 mt-auto">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <p class="mb-4">老師，上述的法定權益與實務建議希望能作為您在繁雜校園事務中的可靠後盾。</p>
+            <p class="text-lg font-bold text-blue-300">請問您是否需要針對特定的法條（如：適性化評量的具體實施辦法）或如何撰寫某類公文，進行進一步的說明呢？</p>
+        </div>
+    </footer>
+
+    <script>
+        const sceneBtns = document.querySelectorAll('.scene-btn');
+        const sceneResponse = document.getElementById('scene-response');
+        
+        const responses = {
+            'dual': '📌 針對雙重身分：建議由輔導室與特教組共同召開個案會議。輔導專注於三級處遇與諮商保密，特教專注於IEP中的行為介入方案與課程調整。兩份計畫需互相參照。',
+            'admin': '📌 針對未具身分者：在未經特殊教育學生鑑定前，不得隨意變更成績計算標準。建議啟動「輔導法」機制，先以介入性輔導處理，並依「鑑定辦法」收集觀察資料，向家長說明法定程序。',
+            'eval': '📌 針對行政評鑑：私校評鑑極看重「程序正義」。所有特殊待遇（如：延長修業、調整評量）都必須有鑑輔會公文及IEP會議紀錄作為法源依據，缺一不可。'
+        };
+
+        sceneBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                sceneBtns.forEach(b => {
+                    b.classList.remove('bg-blue-600', 'text-white');
+                    b.classList.add('bg-white', 'text-blue-700');
+                });
+                this.classList.remove('bg-white', 'text-blue-700');
+                this.classList.add('bg-blue-600', 'text-white');
+                
+                sceneResponse.innerHTML = responses[this.dataset.scene];
+                sceneResponse.classList.remove('hidden');
+            });
+        });
+
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => {
+                    b.classList.remove('tab-active');
+                    b.classList.add('tab-inactive');
+                });
+                btn.classList.add('tab-active');
+                btn.classList.remove('tab-inactive');
+
+                const targetId = btn.getAttribute('data-target');
+                tabContents.forEach(content => {
+                    if (content.id === targetId) {
+                        content.classList.remove('hidden');
+                        content.classList.add('block');
+                    } else {
+                        content.classList.add('hidden');
+                        content.classList.remove('block');
+                    }
+                });
+            });
+        });
+
+        const accordions = document.querySelectorAll('.accordion-btn');
+        accordions.forEach(acc => {
+            acc.addEventListener('click', function() {
+                const content = this.nextElementSibling;
+                const arrow = this.querySelector('span:last-child');
+                
+                if (content.classList.contains('accordion-open')) {
+                    content.classList.remove('accordion-open');
+                    arrow.textContent = '▼';
+                } else {
+                    accordions.forEach(otherAcc => {
+                        otherAcc.nextElementSibling.classList.remove('accordion-open');
+                        otherAcc.querySelector('span:last-child').textContent = '▼';
+                    });
+                    content.classList.add('accordion-open');
+                    arrow.textContent = '▲';
+                }
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            
+            Chart.defaults.font.family = "'Noto Sans TC', sans-serif";
+            
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: [
+                        '法定計畫強制力',
+                        '課程與成績調整權',
+                        '專業治療與輔具資源',
+                        '諮商隱私與保密層級',
+                        '系統性環境介入'
+                    ],
+                    datasets: [{
+                        label: '特教個案',
+                        data: [10, 10, 9, 6, 9],
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 2
+                    }, {
+                        label: '輔導個案',
+                        data: [7, 3, 4, 10, 8],
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 2
+                    }, {
+                        label: '一般學生',
+                        data: [3, 1, 1, 5, 3],
+                        backgroundColor: 'rgba(156, 163, 175, 0.2)',
+                        borderColor: 'rgba(156, 163, 175, 1)',
+                        pointBackgroundColor: 'rgba(156, 163, 175, 1)',
+                        borderWidth: 1,
+                        borderDash: [5, 5]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0, 0, 0, 0.1)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                            pointLabels: {
+                                font: { size: 12, weight: 'bold' },
+                                color: '#374151'
+                            },
+                            ticks: {
+                                display: false,
+                                min: 0,
+                                max: 10
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.formattedValue + ' / 10';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
